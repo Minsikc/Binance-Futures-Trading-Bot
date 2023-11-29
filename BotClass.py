@@ -163,6 +163,14 @@ class Bot:
                                        "ema_long": {"values": list(ema_indicator(CloseS, window=50)),
                                                  "plotting_axis": 1},
                                        }
+                    
+                case 'test_strategy':
+                    CloseS = pd.Series(self.Close)
+                    self.indicators = {"ema_short": {"values": list(ema_indicator(CloseS, window=20)),
+                                                 "plotting_axis": 1},
+                                       "ema_long": {"values": list(ema_indicator(CloseS, window=50)),
+                                                 "plotting_axis": 1},
+                                       }
                 case _:
                     return
         except Exception as e:
@@ -284,9 +292,9 @@ class Bot:
                     self.consume_new_candle(payload)
                     if self.add_hist_complete:
                         self.generate_new_heikin_ashi()
-                        trade_direction, stop_loss_val, take_profit_val = self.make_decision()
+                        trade_direction, stop_loss_val, take_profit_val, entry_price = self.make_decision()
                         if trade_direction != -99:
-                            self.signal_queue.put([self.symbol, self.OP, self.CP, self.tick_size, trade_direction, self.index, stop_loss_val, take_profit_val])
+                            self.signal_queue.put([self.symbol, self.OP, self.CP, self.tick_size, trade_direction, self.index, stop_loss_val, take_profit_val, entry_price])
                         self.remove_first_candle()
                     if self.index == 0:
                         self.print_trades_q.put(True)
@@ -299,9 +307,9 @@ class Bot:
                     self.pop_previous_value = True
                     self.consume_new_candle(payload)
                     self.generate_new_heikin_ashi()
-                    trade_direction, stop_loss_val, take_profit_val = self.make_decision()
+                    trade_direction, stop_loss_val, take_profit_val, entry_price = self.make_decision()
                     if trade_direction != -99:
-                        self.signal_queue.put([self.symbol, self.OP, self.CP, self.tick_size, trade_direction, self.index, stop_loss_val, take_profit_val])
+                        self.signal_queue.put([self.symbol, self.OP, self.CP, self.tick_size, trade_direction, self.index, stop_loss_val, take_profit_val, entry_price])
 
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -316,6 +324,7 @@ class Bot:
         trade_direction = -99  ## Short (0), Long (1)
         stop_loss_val = -99
         take_profit_val = -99
+        entry_price = 0
         ## Strategies found in TradingStrats.py:
         try:
             match self.strategy:
@@ -362,6 +371,13 @@ class Bot:
                     trade_direction = TS.ema_crossover(trade_direction, self.current_index,
                                                        self.indicators["ema_short"]["values"],
                                                        self.indicators["ema_long"]["values"])
+                    
+                case "test_strategy":
+                    trade_direction = TS.test_strategy(trade_direction)
+                    entry_price = self.Close[-1]*0.9
+
+                case "huristic_strategy": 
+                    trade_direction, entry_price = TS.huristic_strategy(trade_direction, self.Close, self.Open, self.High, self.Low, self.current_index)                
 
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -383,7 +399,7 @@ class Bot:
             log.error(
                 f"make_decision() - Error with SetSLTP TP_SL_choice: {self.TP_SL_choice}, Error Info: {exc_obj, fname, exc_tb.tb_lineno}, Error: {e}")
 
-        return trade_direction, stop_loss_val, take_profit_val
+        return trade_direction, stop_loss_val, take_profit_val, entry_price
 
     def check_close_pos(self, trade_direction):
             close_pos = 0

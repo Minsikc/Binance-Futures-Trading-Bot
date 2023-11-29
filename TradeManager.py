@@ -12,6 +12,8 @@ from LiveTradingConfig import *
 import time
 from Helper import Trade
 from Logger import *
+import logging
+from requests.exceptions import ConnectionError, Timeout, RequestException
 
 def calculate_custom_tp_sl(options):
     '''
@@ -75,11 +77,11 @@ class TradeManager:
     def new_trades_loop(self):
         ''' Loop that constantly runs and opens new trades as they come in '''
         while True:
-            [symbol, OP, CP, tick_size, trade_direction, index, stop_loss_val, take_profit_val] = self.new_trades_q.get()
+            [symbol, OP, CP, tick_size, trade_direction, index, stop_loss_val, take_profit_val, entry_price] = self.new_trades_q.get()
             open_trades = self.get_all_open_or_pending_trades()
             if open_trades != -1 and symbol not in open_trades and len(self.active_trades) < max_number_of_positions and self.check_margin_sufficient():
                 try:
-                    order_id, order_qty, entry_price, trade_status = self.open_trade(symbol, trade_direction, OP, tick_size)
+                    order_id, order_qty, entry_price, trade_status = self.open_trade(symbol, trade_direction, OP, CP, tick_size, entry_price)
                     if TP_SL_choice in custom_tp_sl_functions and trade_status != -1:
                         options = {'position_size': order_qty} ## If you have a need to add additional inputs to calculate_custom_tp_sl() you can do so by adding to this dict
                         stop_loss_val, take_profit_val = calculate_custom_tp_sl(options)
@@ -156,13 +158,27 @@ class TradeManager:
             log.warning(f'get_all_open_or_pending_trades() - Error occurred: {e}')
             return -1
 
-    def get_all_open_positions(self):
+    def _get_all_open_positions(self):
         ''' Gets all open positions from binance '''
         try:
             return [position['symbol'] for position in self.client.futures_position_information() if float(position['notional']) != 0.0] ## TODO convert this to a hashmap perhaps {symbol: position_size,...}
         except Exception as e:
             log.warning(f'get_all_open_trades() - Error occurred: {e}')
             return []
+        
+
+
+    def get_all_open_positions(self):
+        ''' Gets all open positions from binance '''
+        try:
+            positions = self.client.futures_position_information()
+            #log.info(f'get_all_open_positions() - positions: {[position['symbol'] for position in positions if float(position['notional']) != 0.0]}')
+            return [position['symbol'] for position in positions if float(position['notional']) != 0.0] ## TODO convert this to a hashmap perhaps {symbol: position_size,...}
+        except Exception as e:
+            log.warning(f'get_all_open_trades() - Error occurred: {e}') # can ignore this error, for first time
+            return []    
+
+
 
     def check_margin_sufficient(self):
         ''' Checks if we have sufficient margin remaining to open a new trade '''
@@ -255,7 +271,7 @@ class TradeManager:
             else:
                 i += 1
 
-    def open_trade(self, symbol, trade_direction, OP, tick_size):
+    def open_trade(self, symbol, trade_direction, OP, CP, tick_size, entry_price=0):
         ''' Function to open a new trade '''
         order_book = None
         order_id = ''
@@ -268,7 +284,11 @@ class TradeManager:
 
         bids = order_book['bids']
         asks = order_book['asks']
-        entry_price = 0
+
+        ## For limit orders
+        limit_entry_price = entry_price 
+        limit_entry_price = round(self.adjust_price_to_tick_size(entry_price, tick_size), CP)
+        ## For market orders
         if trade_direction == 1:
             entry_price = float(bids[0][0])
         elif trade_direction == 0:
@@ -313,7 +333,7 @@ class TradeManager:
                         symbol=symbol,
                         side=SIDE_SELL,
                         type=FUTURE_ORDER_TYPE_LIMIT,
-                        price=entry_price,
+                        price=limit_entry_price,
                         timeInForce=TIME_IN_FORCE_GTC,
                         quantity=order_qty)
                     order_id = order['orderId']
@@ -322,7 +342,7 @@ class TradeManager:
                         symbol=symbol,
                         side=SIDE_BUY,
                         type=FUTURE_ORDER_TYPE_LIMIT,
-                        price=entry_price,
+                        price=limit_entry_price,
                         timeInForce=TIME_IN_FORCE_GTC,
                         quantity=order_qty)
                     order_id = order['orderId']
@@ -333,6 +353,11 @@ class TradeManager:
                     f'Entry price: {entry_price}, trade direction: {trade_direction}, Quantity: {order_qty}, Error Info: {exc_obj, fname, exc_tb.tb_lineno}, Error: {e}')
                 return -1, -1, -1, -1
             return order_id, order_qty, entry_price, 0
+
+    def adjust_price_to_tick_size(self, price, tick_size):
+        # Adjust the price to be a multiple of the tick size
+        adjusted_price = round(price / tick_size) * tick_size
+        return adjusted_price    
 
     def get_account_balance(self):
         ''' Function that returns the USDT balance of the account '''

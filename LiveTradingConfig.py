@@ -1,7 +1,8 @@
-API_KEY = ''
-API_SECRET = ''
+API_KEY = 'TrJaAreMYOpm1bEefnWyOMQBwpGG5pu3ORU2ItnIvQkKdOsQXJoKDhK6WEdVHzQG'
+API_SECRET = '6KcRRfJIFVRPJW6DGpWWhapoZp5SJg1mL2Z4XQi75Sv2hQyj6q4Bd1f986aePpNa'
 
-trading_strategy = 'tripleEMAStochasticRSIATR'
+trading_strategy = 'test_strategy'
+test_mode = True
 '''
 valid options for trading_strategy are: 'StochRSIMACD', 'tripleEMAStochasticRSIATR', 'tripleEMA', 'breakout', 'stochBB',
 'goldenCross', 'candle_wick', 'fibMACD', 'EMA_cross', 'heikin_ashi_ema2', 'heikin_ashi_ema', 'ema_crossover'
@@ -12,12 +13,12 @@ TP_SL_choice = '%'
 'x (Swing Close) level 2', 'x (Swing Close) level 3
 '''
 leverage = 10
-order_size = 3 ## % of account
+order_size = 1 ## % of account
 interval = '1m'
 SL_mult = 1.5 ## SL_mult x TP_SL_choice = SL value
 TP_mult = 1 ## TP_mult x TP_SL_choice = TP value
-trade_all_symbols = True
-symbols_to_trade = ['BTCUSDT']
+trade_all_symbols = False
+symbols_to_trade = ['BTCUSDT', 'PYTHUSDT']
 coin_exclusion_list = ['USDCUSDT', 'BTCDOMUSDT'] ## Put coins you want to exclude in here, so they won't be traded
 use_trailing_stop = False
 trailing_stop_callback = .1

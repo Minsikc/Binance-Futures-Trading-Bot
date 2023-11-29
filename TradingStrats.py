@@ -19,6 +19,39 @@ def candle_wick(Trade_Direction, Close, Open, High, Low, current_index):
         Trade_Direction = 1
     return Trade_Direction
 
+def mystrategy(Trade_Direction, Close, Open, High, Low, current_index):
+
+    # for short entry
+    # find peak signal, when the highest peak within 4 candles is upper than the bollinger band high. and the peaks are ascending
+
+    period = 50  ##Record peaks and troughs in last period timesteps
+    peak_signals = []  ##Store peak values
+    location_peaks = []  ##store current_index of peak value , used for debugging
+    Close_troughs = []  ##store trough values
+    location_troughs = []  ##store current_index of peak trough , used for debugging
+    opens = [] ##Store open values
+    closes = [] ##Store close values
+    bollinger_band_high = [] ##Store bollinger band high values
+
+    #####################get bolinger band values ##############################
+    for i in range(current_index - period, current_index - 2):
+        return
+    
+    #####################Find peak signals##############################
+    #####peak_signals are defined as a candle that is long tail up and the highest high within previous 4 candles##### 
+
+
+    ## find short entry signal ##
+    ## if first_signal is long green candle and have a big volume & second signal comes, calulate the entry price
+    for i in range(current_index - period, current_index - 2): 
+        return
+    # for long entry
+    # find golden cross and other signals, not decided yet
+
+def test_strategy(Trade_Direction):
+    Trade_Direction = 1
+    return Trade_Direction
+
 
 def fibMACD(Trade_Direction, Close, Open, High, Low, MACD_signal, MACD, EMA200, current_index):
     period = 100  ##Record peaks and troughs in last period timesteps
